@@ -2,14 +2,18 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as BS
 import Data.List (intercalate)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
 import qualified Data.Vector
+import qualified Database.Bloodhound as Bloodhound
 import GitHub (Name, Owner, Repo, Tree, executeRequest)
 import qualified GitHub.Endpoints.GitData.Trees as GHTrees
 import qualified GitHub.Endpoints.Repos.Contents as GHContents
+import qualified Network.HTTP.Client as Http
+import System.Environment
 
 
 newtype Root = GithubRoot GithubRepo
@@ -26,6 +30,9 @@ data Doc
   deriving (Show)
 
 
+newtype DocContent = DocContent Text
+
+
 roots :: [Root]
 roots =
   [ GithubRoot (GithubRepo "juanedi" "dotfiles" "master")
@@ -35,40 +42,63 @@ roots =
 
 main :: IO ()
 main = do
+  initializeIndex
   docs <- concat <$> mapM (\(GithubRoot repo) -> docsInGithubRoot repo) roots
   mapM_ processDoc docs
 
 
+initializeIndex :: IO ()
+initializeIndex = do
+  esHost <- Text.pack <$> System.Environment.getEnv "ES_HOST"
+  esUser <- BS.pack <$> System.Environment.getEnv "ES_USER"
+  esPassword <- BS.pack <$> System.Environment.getEnv "ES_PASSWORD"
+  httpManager <- Http.newManager Http.defaultManagerSettings
+  let server = Bloodhound.Server esHost
+  let index = Bloodhound.IndexName "doc-search"
+  let indexSettings = Bloodhound.IndexSettings (Bloodhound.ShardCount 1) (Bloodhound.ReplicaCount 0) Bloodhound.defaultIndexMappingsLimits
+  let authHook request = return (Http.applyBasicAuth esUser esPassword request)
+  let bhEnv = (Bloodhound.mkBHEnv server httpManager) {Bloodhound.bhRequestHook = authHook}
+  Bloodhound.runBH bhEnv $ do
+    reply <- Bloodhound.createIndex indexSettings index
+    True <- Bloodhound.indexExists index
+    -- TODO: explicitly create mapping
+    return ()
+
+
 processDoc :: Doc -> IO ()
 processDoc doc@(GithubDoc (GithubRepo owner repo commit) path) = do
-  -- TODO:
-  --   - parse links
-  --   - enqueue links
-  --   - indexing
-  --   - do all of the above but in a queue (so we do BFS instead of DFS)
+  maybeContent <- fetchDocContents doc
+  case maybeContent of
+    Nothing ->
+      -- TODO: handle error
+      return ()
+    Just content ->
+      indexDoc doc (DocContent content)
+
+
+fetchDocContents :: Doc -> IO (Maybe Text)
+fetchDocContents (GithubDoc (GithubRepo owner repo commit) path) = do
   let request =
         GHContents.contentsForR
           owner
           repo
           path
-          Nothing -- todo: specify commit
+          Nothing -- TODO: specify commit
   result <- executeRequest () request
   case result of
     Left error ->
-      -- TODO: handle error
-      return ()
+      return Nothing
     Right (GHContents.ContentDirectory _) ->
       -- NOTE: not possible since we only query files
-      return ()
+      return Nothing
     Right (GHContents.ContentFile fileData) -> do
-      putStrLn ""
-      putStrLn ""
-      putStrLn ""
-      putStrLn "============================================================================================================"
-      print doc
-      putStrLn "============================================================================================================"
-      putStrLn ""
-      print (decodeBase64Lenient (GHContents.contentFileContent fileData))
+      return (Just (decodeBase64Lenient (GHContents.contentFileContent fileData)))
+
+
+indexDoc :: Doc -> DocContent -> IO ()
+indexDoc doc content =
+  -- TODO
+  return ()
 
 
 docsInGithubRoot :: GithubRepo -> IO [Doc]

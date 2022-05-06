@@ -35,6 +35,9 @@ executable doc-search
     -- other-extensions:
     build-depends:    base ^>=4.14.1.0
                     , base64
+                    , bloodhound
+                    , bytestring
+                    , http-client ^>=0.7.11
                     , github ^>=0.28
                     , text
                     , vector
