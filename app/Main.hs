@@ -8,11 +8,12 @@ import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
 import qualified Data.Vector
 import qualified Database.Bloodhound as Bloodhound
 import GitHub (Name, Owner, Repo, Tree, executeRequest)
+import qualified GitHub.Auth as GHAuth
 import GitHub.Data.Name (untagName)
 import qualified GitHub.Endpoints.GitData.Trees as GHTrees
 import qualified GitHub.Endpoints.Repos.Contents as GHContents
 import qualified Index
-import System.Environment
+import System.Environment (getEnv)
 
 
 newtype Root = GithubRoot GithubRepo
@@ -39,19 +40,21 @@ roots :: [Root]
 roots =
   [ GithubRoot (GithubRepo "juanedi" "dotfiles" "master")
   , GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
+  , GithubRoot (GithubRepo "NoRedInk" "NoRedInk" "master")
   ]
 
 
 main :: IO ()
 main = do
+  ghAuth <- GHAuth.OAuth . BS.pack <$> getEnv "GH_TOKEN"
   indexHandler <- Index.initialize
-  docs <- concat <$> mapM (\(GithubRoot repo) -> docsInGithubRoot repo) roots
-  mapM_ (processDoc indexHandler) docs
+  docs <- concat <$> mapM (\(GithubRoot repo) -> docsInGithubRoot ghAuth repo) roots
+  mapM_ (processDoc ghAuth indexHandler) docs
 
 
-processDoc :: Index.Handler -> Doc -> IO ()
-processDoc indexHandler doc@(GithubDoc (GithubRepo owner repo commit) path) = do
-  maybeContent <- fetchDocContents doc
+processDoc :: GHAuth.Auth -> Index.Handler -> Doc -> IO ()
+processDoc ghAuth indexHandler doc@(GithubDoc (GithubRepo owner repo commit) path) = do
+  maybeContent <- fetchDocContents ghAuth doc
   case maybeContent of
     Nothing ->
       -- TODO: handle error
@@ -82,15 +85,15 @@ docToUrl (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) =
     )
 
 
-fetchDocContents :: Doc -> IO (Maybe Text)
-fetchDocContents (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) = do
+fetchDocContents :: GHAuth.Auth -> Doc -> IO (Maybe Text)
+fetchDocContents ghAuth (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) = do
   let request =
         GHContents.contentsForR
           owner
           repo
           path
           Nothing -- TODO: specify commit
-  result <- executeRequest () request
+  result <- executeRequest ghAuth request
   case result of
     Left error ->
       return Nothing
@@ -101,9 +104,9 @@ fetchDocContents (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) = 
       return (Just (decodeBase64Lenient (GHContents.contentFileContent fileData)))
 
 
-docsInGithubRoot :: GithubRepo -> IO [Doc]
-docsInGithubRoot repo = do
-  entries <- listFiles repo
+docsInGithubRoot :: GHAuth.Auth -> GithubRepo -> IO [Doc]
+docsInGithubRoot ghToken repo = do
+  entries <- listFiles ghToken repo
   let markdownFiles = filter isMarkdownFile entries
   return
     ( map
@@ -117,13 +120,14 @@ isMarkdownFile entry =
   GHTrees.gitTreeType entry == "blob" && Text.isSuffixOf ".md" (GHTrees.gitTreePath entry)
 
 
-listFiles :: GithubRepo -> IO [GHTrees.GitTree]
-listFiles (GithubRepo owner repo commit) = do
+listFiles :: GHAuth.Auth -> GithubRepo -> IO [GHTrees.GitTree]
+listFiles ghAuth (GithubRepo owner repo commit) = do
   let request = GHTrees.nestedTreeR owner repo commit
-  result <- executeRequest () request
+  result <- executeRequest ghAuth request
   case result of
-    Left error ->
+    Left error -> do
       -- TODO: handle error
+      putStrLn ("error: " ++ show error)
       return []
     Right tree ->
       return (Data.Vector.toList (GHTrees.treeGitTrees tree))
