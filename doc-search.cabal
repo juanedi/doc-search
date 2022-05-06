@@ -29,18 +29,22 @@ executable doc-search
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:
+        Index
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base ^>=4.14.1.0
+                    , aeson
+                    , aeson-pretty
                     , base64
                     , bloodhound
                     , bytestring
+                    , pureMD5
                     , http-client ^>=0.7.11
                     , github ^>=0.28
                     , text
                     , vector
-    hs-source-dirs:   app
+    hs-source-dirs:   app, src
     default-language: Haskell2010
     default-extensions:  OverloadedStrings

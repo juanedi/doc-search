@@ -8,9 +8,10 @@ import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
 import qualified Data.Vector
 import qualified Database.Bloodhound as Bloodhound
 import GitHub (Name, Owner, Repo, Tree, executeRequest)
+import GitHub.Data.Name (untagName)
 import qualified GitHub.Endpoints.GitData.Trees as GHTrees
 import qualified GitHub.Endpoints.Repos.Contents as GHContents
-import qualified Network.HTTP.Client as Http
+import qualified Index
 import System.Environment
 
 
@@ -29,6 +30,8 @@ data Doc
 
 
 newtype GithubPath = GithubPath Text deriving (Show)
+
+
 newtype DocContent = DocContent Text deriving (Show)
 
 
@@ -41,38 +44,42 @@ roots =
 
 main :: IO ()
 main = do
-  initializeIndex
+  indexHandler <- Index.initialize
   docs <- concat <$> mapM (\(GithubRoot repo) -> docsInGithubRoot repo) roots
-  mapM_ processDoc docs
+  mapM_ (processDoc indexHandler) docs
 
 
-initializeIndex :: IO ()
-initializeIndex = do
-  esHost <- Text.pack <$> System.Environment.getEnv "ES_HOST"
-  esUser <- BS.pack <$> System.Environment.getEnv "ES_USER"
-  esPassword <- BS.pack <$> System.Environment.getEnv "ES_PASSWORD"
-  httpManager <- Http.newManager Http.defaultManagerSettings
-  let server = Bloodhound.Server esHost
-  let index = Bloodhound.IndexName "doc-search"
-  let indexSettings = Bloodhound.IndexSettings (Bloodhound.ShardCount 1) (Bloodhound.ReplicaCount 0) Bloodhound.defaultIndexMappingsLimits
-  let authHook request = return (Http.applyBasicAuth esUser esPassword request)
-  let bhEnv = (Bloodhound.mkBHEnv server httpManager) {Bloodhound.bhRequestHook = authHook}
-  Bloodhound.runBH bhEnv $ do
-    reply <- Bloodhound.createIndex indexSettings index
-    True <- Bloodhound.indexExists index
-    -- TODO: explicitly create mapping
-    return ()
-
-
-processDoc :: Doc -> IO ()
-processDoc doc@(GithubDoc (GithubRepo owner repo commit) path) = do
+processDoc :: Index.Handler -> Doc -> IO ()
+processDoc indexHandler doc@(GithubDoc (GithubRepo owner repo commit) path) = do
   maybeContent <- fetchDocContents doc
   case maybeContent of
     Nothing ->
       -- TODO: handle error
       return ()
     Just content ->
-      indexDoc doc (DocContent content)
+      Index.indexDoc
+        indexHandler
+        ( Index.Record
+            { Index.url = docToUrl doc
+            , Index.contents = content
+            }
+        )
+
+
+docToUrl :: Doc -> Index.Url
+docToUrl (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) =
+  Index.Url
+    ( Text.concat
+        [ "http://github.com/"
+        , untagName owner
+        , "/"
+        , untagName repo
+        , "/blob/"
+        , untagName commit
+        , "/"
+        , path
+        ]
+    )
 
 
 fetchDocContents :: Doc -> IO (Maybe Text)
@@ -92,12 +99,6 @@ fetchDocContents (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) = 
       return Nothing
     Right (GHContents.ContentFile fileData) -> do
       return (Just (decodeBase64Lenient (GHContents.contentFileContent fileData)))
-
-
-indexDoc :: Doc -> DocContent -> IO ()
-indexDoc doc content =
-  -- TODO
-  return ()
 
 
 docsInGithubRoot :: GithubRepo -> IO [Doc]
