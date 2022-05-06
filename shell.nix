@@ -12,5 +12,6 @@ pkgs.mkShell {
     pkgs-darwin.haskellPackages.fourmolu
     pkgs-darwin.ghc
     pkgs-darwin.haskell-language-server
+    pkgs-darwin.zlib
   ];
 }
