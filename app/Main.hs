@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 import qualified Data.ByteString.Char8 as BS
@@ -26,11 +24,12 @@ data GithubRepo = GithubRepo (Name Owner) (Name Repo) (Name Tree)
 data Doc
   = GithubDoc
       GithubRepo
-      Text -- path
+      GithubPath
   deriving (Show)
 
 
-newtype DocContent = DocContent Text
+newtype GithubPath = GithubPath Text deriving (Show)
+newtype DocContent = DocContent Text deriving (Show)
 
 
 roots :: [Root]
@@ -77,7 +76,7 @@ processDoc doc@(GithubDoc (GithubRepo owner repo commit) path) = do
 
 
 fetchDocContents :: Doc -> IO (Maybe Text)
-fetchDocContents (GithubDoc (GithubRepo owner repo commit) path) = do
+fetchDocContents (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) = do
   let request =
         GHContents.contentsForR
           owner
@@ -107,7 +106,7 @@ docsInGithubRoot repo = do
   let markdownFiles = filter isMarkdownFile entries
   return
     ( map
-        (GithubDoc repo . GHTrees.gitTreePath)
+        (GithubDoc repo . GithubPath . GHTrees.gitTreePath)
         markdownFiles
     )
 
