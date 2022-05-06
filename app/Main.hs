@@ -5,9 +5,11 @@ module Main where
 import Data.List (intercalate)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
 import qualified Data.Vector
 import GitHub (Name, Owner, Repo, Tree, executeRequest)
-import qualified GitHub.Endpoints.GitData.Trees as Github
+import qualified GitHub.Endpoints.GitData.Trees as GHTrees
+import qualified GitHub.Endpoints.Repos.Contents as GHContents
 
 
 newtype Root = GithubRoot GithubRepo
@@ -38,14 +40,35 @@ main = do
 
 
 processDoc :: Doc -> IO ()
-processDoc doc =
+processDoc doc@(GithubDoc (GithubRepo owner repo commit) path) = do
   -- TODO:
-  --   - fetch contents
   --   - parse links
   --   - enqueue links
   --   - indexing
   --   - do all of the above but in a queue (so we do BFS instead of DFS)
-  print doc
+  let request =
+        GHContents.contentsForR
+          owner
+          repo
+          path
+          Nothing -- todo: specify commit
+  result <- executeRequest () request
+  case result of
+    Left error ->
+      -- TODO: handle error
+      return ()
+    Right (GHContents.ContentDirectory _) ->
+      -- NOTE: not possible since we only query files
+      return ()
+    Right (GHContents.ContentFile fileData) -> do
+      putStrLn ""
+      putStrLn ""
+      putStrLn ""
+      putStrLn "============================================================================================================"
+      print doc
+      putStrLn "============================================================================================================"
+      putStrLn ""
+      print (decodeBase64Lenient (GHContents.contentFileContent fileData))
 
 
 docsInGithubRoot :: GithubRepo -> IO [Doc]
@@ -54,20 +77,23 @@ docsInGithubRoot repo = do
   let markdownFiles = filter isMarkdownFile entries
   return
     ( map
-        (GithubDoc repo . Github.gitTreePath)
+        (GithubDoc repo . GHTrees.gitTreePath)
         markdownFiles
     )
 
 
-isMarkdownFile :: Github.GitTree -> Bool
+isMarkdownFile :: GHTrees.GitTree -> Bool
 isMarkdownFile entry =
-  Github.gitTreeType entry == "blob" && Text.isSuffixOf ".md" (Github.gitTreePath entry)
+  GHTrees.gitTreeType entry == "blob" && Text.isSuffixOf ".md" (GHTrees.gitTreePath entry)
 
 
-listFiles :: GithubRepo -> IO [Github.GitTree]
+listFiles :: GithubRepo -> IO [GHTrees.GitTree]
 listFiles (GithubRepo owner repo commit) = do
-  let request = Github.nestedTreeR owner repo commit
+  let request = GHTrees.nestedTreeR owner repo commit
   result <- executeRequest () request
   case result of
-    (Left error) -> return []
-    (Right tree) -> return (Data.Vector.toList (Github.treeGitTrees tree))
+    Left error ->
+      -- TODO: handle error
+      return []
+    Right tree ->
+      return (Data.Vector.toList (GHTrees.treeGitTrees tree))
