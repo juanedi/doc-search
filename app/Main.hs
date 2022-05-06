@@ -14,18 +14,21 @@ newtype Root = GithubRoot GithubRepo
 
 
 data GithubRepo = GithubRepo (Name Owner) (Name Repo) (Name Tree)
+  deriving (Show)
 
 
 data Doc
   = GithubDoc
       GithubRepo
-      -- path
-      Text
+      Text -- path
+  deriving (Show)
 
 
 roots :: [Root]
 roots =
-  [GithubRoot (GithubRepo "juanedi" "dotfiles" "master")]
+  [ GithubRoot (GithubRepo "juanedi" "dotfiles" "master")
+  , GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
+  ]
 
 
 main :: IO ()
@@ -35,27 +38,36 @@ main = do
 
 
 processDoc :: Doc -> IO ()
-processDoc (GithubDoc reop path) =
+processDoc doc =
   -- TODO:
   --   - fetch contents
   --   - parse links
   --   - enqueue links
   --   - indexing
   --   - do all of the above but in a queue (so we do BFS instead of DFS)
-  putStrLn (Text.unpack path)
+  print doc
 
 
 docsInGithubRoot :: GithubRepo -> IO [Doc]
 docsInGithubRoot repo = do
-  files <- listFiles repo
-  return (map (GithubDoc repo) files)
+  entries <- listFiles repo
+  let markdownFiles = filter isMarkdownFile entries
+  return
+    ( map
+        (GithubDoc repo . Github.gitTreePath)
+        markdownFiles
+    )
 
 
-listFiles :: GithubRepo -> IO [Text]
+isMarkdownFile :: Github.GitTree -> Bool
+isMarkdownFile entry =
+  Github.gitTreeType entry == "blob" && Text.isSuffixOf ".md" (Github.gitTreePath entry)
+
+
+listFiles :: GithubRepo -> IO [Github.GitTree]
 listFiles (GithubRepo owner repo commit) = do
   let request = Github.nestedTreeR owner repo commit
   result <- executeRequest () request
   case result of
     (Left error) -> return []
-    (Right tree) ->
-      return (map Github.gitTreePath (Data.Vector.toList (Github.treeGitTrees tree)))
+    (Right tree) -> return (Data.Vector.toList (Github.treeGitTrees tree))
