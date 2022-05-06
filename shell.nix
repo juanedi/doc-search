@@ -7,7 +7,10 @@ in
 pkgs.mkShell {
   buildInputs = [
     niv.niv
-    pkgs-darwin.ghc
+
     pkgs-darwin.cabal-install
+    pkgs-darwin.haskellPackages.fourmolu
+    pkgs-darwin.ghc
+    pkgs-darwin.haskell-language-server
   ];
 }
