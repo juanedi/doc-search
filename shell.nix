@@ -2,9 +2,12 @@ let
   sources = import ./nix/sources.nix;
   niv = import sources.niv { };
   pkgs = import sources.nixpkgs { };
-in with pkgs;
-mkShell {
+  pkgs-darwin = import sources.nixpkgs { localSystem = "x86_64-darwin"; };
+in
+pkgs.mkShell {
   buildInputs = [
     niv.niv
+    pkgs-darwin.ghc
+    pkgs-darwin.cabal-install
   ];
 }
