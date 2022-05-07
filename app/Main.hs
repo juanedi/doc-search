@@ -92,7 +92,7 @@ fetchDocContents ghAuth (GithubDoc (GithubRepo owner repo commit) (GithubPath pa
           owner
           repo
           path
-          Nothing -- TODO: specify commit
+          (Just (untagName commit))
   result <- executeRequest ghAuth request
   case result of
     Left error ->
