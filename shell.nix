@@ -9,9 +9,12 @@ pkgs.mkShell {
     niv.niv
 
     pkgs-darwin.cabal-install
-    pkgs-darwin.haskellPackages.fourmolu
+    pkgs-darwin.elmPackages.elm
+    pkgs-darwin.elmPackages.elm-format
+    pkgs-darwin.elmPackages.elm-language-server
     pkgs-darwin.ghc
     pkgs-darwin.haskell-language-server
+    pkgs-darwin.haskellPackages.fourmolu
     pkgs-darwin.zlib
   ];
 }
