@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Css
-import Html.Styled as Html
+import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
 import Http
@@ -147,37 +147,52 @@ view model =
     { title = "Doc Search"
     , body =
         List.map Html.toUnstyled
-            [ Html.div
-                [ css
-                    [ Css.displayFlex
-                    , Css.flexDirection Css.column
-                    , Css.alignItems Css.center
-                    , Css.paddingTop (Css.pct 20)
-                    , Css.height (Css.vh 100)
-                    ]
-                ]
-                [ Html.div []
-                    [ Logo.noredink
-                        |> Svg.withWidth (Css.px 400)
-                        |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
-                        |> Svg.toHtml
-                    ]
-                , Html.form
-                    [ css
-                        [ Css.displayFlex
-                        , Css.alignItems Css.center
-                        , Css.justifyContent Css.center
-                        ]
-                    , Events.onSubmit TriggerSearch
-                    ]
-                    [ TextInput.view ""
-                        [ TextInput.search InputChanged
-                        , TextInput.value model.input
-                        , TextInput.autofocus
-                        , TextInput.css [ Css.minWidth (Css.px 700) ]
-                        , TextInput.placeholder "Search anywhere"
-                        ]
-                    ]
-                ]
+            [ case model.queryState of
+                GotMatches matches ->
+                    viewMatches model matches
+
+                _ ->
+                    viewLanding model
             ]
     }
+
+
+viewLanding : Model -> Html Msg
+viewLanding model =
+    Html.div
+        [ css
+            [ Css.displayFlex
+            , Css.flexDirection Css.column
+            , Css.alignItems Css.center
+            , Css.paddingTop (Css.pct 20)
+            , Css.height (Css.vh 100)
+            ]
+        ]
+        [ Html.div []
+            [ Logo.noredink
+                |> Svg.withWidth (Css.px 400)
+                |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
+                |> Svg.toHtml
+            ]
+        , Html.form
+            [ css
+                [ Css.displayFlex
+                , Css.alignItems Css.center
+                , Css.justifyContent Css.center
+                ]
+            , Events.onSubmit TriggerSearch
+            ]
+            [ TextInput.view ""
+                [ TextInput.search InputChanged
+                , TextInput.value model.input
+                , TextInput.autofocus
+                , TextInput.css [ Css.minWidth (Css.px 700) ]
+                , TextInput.placeholder "Search anywhere"
+                ]
+            ]
+        ]
+
+
+viewMatches : Model -> List Match -> Html Msg
+viewMatches _ matches =
+    Html.text (String.fromInt (List.length matches) ++ " matches found")
