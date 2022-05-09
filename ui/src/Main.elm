@@ -4,6 +4,7 @@ import Browser
 import Css
 import Html.Styled as Html
 import Html.Styled.Attributes exposing (css)
+import Html.Styled.Events as Events
 import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
@@ -19,6 +20,7 @@ type alias Flags =
 
 type Msg
     = InputChanged String
+    | TriggerSearch
     | SearchResult (Result Http.Error (List Match))
 
 
@@ -30,7 +32,7 @@ type alias Model =
 
 type QueryState
     = NotAsked
-      -- | Asking String
+    | Asking String
     | Failed Http.Error
     | GotMatches (List Match)
 
@@ -64,50 +66,6 @@ matchDecoder =
         |> DecodePipeline.requiredAt [ "highlight", "contents" ] (Decode.list Decode.string)
 
 
-{-|
-
-    {
-      "query": {
-        "simple_query_string": {
-          "query": <SEARCH_TERM>,
-          "fields": ["contents"]
-        }
-      },
-      "highlight":{
-          "fragment_size":50,
-          "fields":{
-             "contents":{}
-          }
-       },
-      "fields": ["url"],
-      "_source": false
-    }
-
--}
-exampleQuery : String -> Encode.Value
-exampleQuery searchTerm =
-    Encode.object
-        [ ( "query"
-          , Encode.object
-                [ ( "simple_query_string"
-                  , Encode.object
-                        [ ( "query", Encode.string searchTerm )
-                        , ( "fields", Encode.list Encode.string [ "contents" ] )
-                        ]
-                  )
-                ]
-          )
-        , ( "highlight"
-          , Encode.object
-                [ ( "fragment_size", Encode.int 50 )
-                , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
-                ]
-          )
-        , ( "fields", Encode.list Encode.string [ "url" ] )
-        , ( "_source", Encode.bool False )
-        ]
-
-
 main : Program Flags Model Msg
 main =
     Browser.document
@@ -123,15 +81,7 @@ init =
     ( { input = ""
       , queryState = NotAsked
       }
-    , let
-        jsonQuery =
-            exampleQuery "migration"
-      in
-      Http.post
-        { url = "http://localhost:9200/doc-search/_search"
-        , body = Http.jsonBody jsonQuery
-        , expect = Http.expectJson SearchResult responseDecoder
-        }
+    , Cmd.none
     )
 
 
@@ -140,6 +90,11 @@ update msg model =
     case msg of
         InputChanged newInput ->
             ( { model | input = newInput }, Cmd.none )
+
+        TriggerSearch ->
+            ( { model | queryState = Asking model.input }
+            , triggerSearch model.input
+            )
 
         SearchResult result ->
             ( { model
@@ -155,6 +110,38 @@ update msg model =
             )
 
 
+triggerSearch : String -> Cmd Msg
+triggerSearch input =
+    let
+        jsonQuery =
+            Encode.object
+                [ ( "query"
+                  , Encode.object
+                        [ ( "simple_query_string"
+                          , Encode.object
+                                [ ( "query", Encode.string input )
+                                , ( "fields", Encode.list Encode.string [ "contents" ] )
+                                ]
+                          )
+                        ]
+                  )
+                , ( "highlight"
+                  , Encode.object
+                        [ ( "fragment_size", Encode.int 50 )
+                        , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
+                        ]
+                  )
+                , ( "fields", Encode.list Encode.string [ "url" ] )
+                , ( "_source", Encode.bool False )
+                ]
+    in
+    Http.post
+        { url = "http://localhost:9200/doc-search/_search"
+        , body = Http.jsonBody jsonQuery
+        , expect = Http.expectJson SearchResult responseDecoder
+        }
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "Doc Search"
@@ -165,7 +152,7 @@ view model =
                     [ Css.displayFlex
                     , Css.flexDirection Css.column
                     , Css.alignItems Css.center
-                    , Css.paddingTop (Css.pct 25)
+                    , Css.paddingTop (Css.pct 20)
                     , Css.height (Css.vh 100)
                     ]
                 ]
@@ -175,21 +162,19 @@ view model =
                         |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
                         |> Svg.toHtml
                     ]
-                , Html.div
+                , Html.form
                     [ css
                         [ Css.displayFlex
                         , Css.alignItems Css.center
                         , Css.justifyContent Css.center
                         ]
+                    , Events.onSubmit TriggerSearch
                     ]
                     [ TextInput.view ""
                         [ TextInput.search InputChanged
                         , TextInput.value model.input
                         , TextInput.autofocus
-                        , TextInput.css
-                            [ Css.minWidth (Css.px 700)
-                            , Css.marginRight (Css.px 25)
-                            ]
+                        , TextInput.css [ Css.minWidth (Css.px 700) ]
                         , TextInput.placeholder "Search anywhere"
                         ]
                     ]
