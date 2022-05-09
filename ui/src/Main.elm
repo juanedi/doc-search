@@ -28,14 +28,14 @@ type Msg
 type alias Model =
     { input : String
     , queryState : QueryState
+    , matches : List Match
     }
 
 
 type QueryState
-    = NotAsked
+    = Idle
     | Asking String
     | Failed Http.Error
-    | GotMatches (List Match)
 
 
 type alias Match =
@@ -80,7 +80,8 @@ main =
 init : ( Model, Cmd Msg )
 init =
     ( { input = ""
-      , queryState = NotAsked
+      , queryState = Idle
+      , matches = []
       }
     , Cmd.none
     )
@@ -98,15 +99,12 @@ update msg model =
             )
 
         SearchResult result ->
-            ( { model
-                | queryState =
-                    case result of
-                        Err error ->
-                            Failed error
+            ( case result of
+                Err error ->
+                    { model | queryState = Failed error }
 
-                        Ok matches ->
-                            GotMatches matches
-              }
+                Ok matches ->
+                    { model | queryState = Idle, matches = matches }
             , Cmd.none
             )
 
@@ -148,9 +146,9 @@ view model =
     { title = "Doc Search"
     , body =
         List.map Html.toUnstyled
-            [ case model.queryState of
-                GotMatches matches ->
-                    viewMatches model matches
+            [ case model.matches of
+                _ :: _ ->
+                    viewMatches model model.matches
 
                 _ ->
                     viewLanding model
@@ -230,22 +228,24 @@ viewMatchesHeader model =
             |> Svg.withWidth (Css.px 150)
             |> Svg.withCss [ Css.marginTop (Css.px 9) ]
             |> Svg.toHtml
-        , TextInput.view ""
-            (List.concat
-                [ [ TextInput.search InputChanged
-                  , TextInput.value model.input
-                  , TextInput.autofocus
-                  , TextInput.css
-                        [ Css.minWidth (Css.px 400)
-                        , Css.marginLeft (Css.px 30)
-                        ]
-                  ]
-                , case model.queryState of
-                    Asking _ ->
-                        [ TextInput.loading ]
+        , Html.form [ Events.onSubmit TriggerSearch ]
+            [ TextInput.view ""
+                (List.concat
+                    [ [ TextInput.search InputChanged
+                      , TextInput.value model.input
+                      , TextInput.autofocus
+                      , TextInput.css
+                            [ Css.minWidth (Css.px 400)
+                            , Css.marginLeft (Css.px 30)
+                            ]
+                      ]
+                    , case model.queryState of
+                        Asking _ ->
+                            [ TextInput.loading ]
 
-                    _ ->
-                        []
-                ]
-            )
+                        _ ->
+                            []
+                    ]
+                )
+            ]
         ]
