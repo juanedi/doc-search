@@ -10,6 +10,7 @@ import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
 import Nri.Ui.Colors.V1 as Colors
+import Nri.Ui.Heading.V2 as Heading
 import Nri.Ui.Logo.V1 as Logo
 import Nri.Ui.Svg.V1 as Svg
 import Nri.Ui.TextInput.V7 as TextInput
@@ -147,11 +148,11 @@ view model =
     , body =
         List.map Html.toUnstyled
             [ case model.matches of
-                _ :: _ ->
-                    viewMatches model model.matches
+                [] ->
+                    viewLanding model
 
                 _ ->
-                    viewLanding model
+                    viewMatchesPage model
             ]
     }
 
@@ -199,23 +200,21 @@ viewLanding model =
         ]
 
 
-viewMatches : Model -> List Match -> Html Msg
-viewMatches model matches =
+viewMatchesPage : Model -> Html Msg
+viewMatchesPage model =
     Html.div
         [ css
             [ Css.displayFlex
             , Css.flexDirection Css.column
             ]
         ]
-        [ viewMatchesHeader model
-        , Html.div []
-            [ Html.text (String.fromInt (List.length matches) ++ " matches found")
-            ]
+        [ viewMatchesPageHeader model
+        , viewMatches model
         ]
 
 
-viewMatchesHeader : Model -> Html Msg
-viewMatchesHeader model =
+viewMatchesPageHeader : Model -> Html Msg
+viewMatchesPageHeader model =
     Html.div
         [ css
             [ Css.displayFlex
@@ -248,4 +247,36 @@ viewMatchesHeader model =
                     ]
                 )
             ]
+        ]
+
+
+viewMatches : Model -> Html Msg
+viewMatches model =
+    let
+        viewMatch match =
+            Html.li [ css [ Css.marginBottom (Css.px 15) ] ]
+                [ Heading.h3 [] [ Html.text match.url ]
+                , case match.highlights of
+                    [] ->
+                        Html.text ""
+
+                    -- [ highlight ] ->
+                    --     viewHighlight highlight
+                    highlight :: _ ->
+                        viewHighlight highlight
+                ]
+
+        viewHighlight highlight =
+            -- TODO: render markdown?
+            Html.text highlight
+    in
+    Html.div [ css [ Css.padding2 Css.zero (Css.px 18) ] ]
+        [ Html.div [] [ Html.text (String.fromInt (List.length model.matches) ++ " matches found") ]
+        , Html.ul
+            [ css
+                [ Css.padding Css.zero
+                , Css.listStyle Css.none
+                ]
+            ]
+            (List.map viewMatch model.matches)
         ]
