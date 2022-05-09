@@ -3,6 +3,8 @@
 *.log
 tmp/
 
+.envrc.secret
+
 /dist-newstyle
 
 elm-stuff
