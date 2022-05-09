@@ -9,6 +9,7 @@ import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
+import Nri.Ui.Colors.V1 as Colors
 import Nri.Ui.Logo.V1 as Logo
 import Nri.Ui.Svg.V1 as Svg
 import Nri.Ui.TextInput.V7 as TextInput
@@ -168,12 +169,10 @@ viewLanding model =
             , Css.height (Css.vh 100)
             ]
         ]
-        [ Html.div []
-            [ Logo.noredink
-                |> Svg.withWidth (Css.px 400)
-                |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
-                |> Svg.toHtml
-            ]
+        [ Logo.noredink
+            |> Svg.withWidth (Css.px 400)
+            |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
+            |> Svg.toHtml
         , Html.form
             [ css
                 [ Css.displayFlex
@@ -183,16 +182,70 @@ viewLanding model =
             , Events.onSubmit TriggerSearch
             ]
             [ TextInput.view ""
-                [ TextInput.search InputChanged
-                , TextInput.value model.input
-                , TextInput.autofocus
-                , TextInput.css [ Css.minWidth (Css.px 700) ]
-                , TextInput.placeholder "Search anywhere"
-                ]
+                (List.concat
+                    [ [ TextInput.search InputChanged
+                      , TextInput.value model.input
+                      , TextInput.autofocus
+                      , TextInput.css [ Css.minWidth (Css.px 700) ]
+                      , TextInput.placeholder "Search anywhere"
+                      ]
+                    , case model.queryState of
+                        Asking _ ->
+                            [ TextInput.loading ]
+
+                        _ ->
+                            []
+                    ]
+                )
             ]
         ]
 
 
 viewMatches : Model -> List Match -> Html Msg
-viewMatches _ matches =
-    Html.text (String.fromInt (List.length matches) ++ " matches found")
+viewMatches model matches =
+    Html.div
+        [ css
+            [ Css.displayFlex
+            , Css.flexDirection Css.column
+            ]
+        ]
+        [ viewMatchesHeader model
+        , Html.div []
+            [ Html.text (String.fromInt (List.length matches) ++ " matches found")
+            ]
+        ]
+
+
+viewMatchesHeader : Model -> Html Msg
+viewMatchesHeader model =
+    Html.div
+        [ css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.padding (Css.px 18)
+            , Css.borderBottom3 (Css.px 1) Css.solid Colors.gray85
+            ]
+        ]
+        [ Logo.noredink
+            |> Svg.withWidth (Css.px 150)
+            |> Svg.withCss [ Css.marginTop (Css.px 9) ]
+            |> Svg.toHtml
+        , TextInput.view ""
+            (List.concat
+                [ [ TextInput.search InputChanged
+                  , TextInput.value model.input
+                  , TextInput.autofocus
+                  , TextInput.css
+                        [ Css.minWidth (Css.px 400)
+                        , Css.marginLeft (Css.px 30)
+                        ]
+                  ]
+                , case model.queryState of
+                    Asking _ ->
+                        [ TextInput.loading ]
+
+                    _ ->
+                        []
+                ]
+            )
+        ]
