@@ -4,6 +4,7 @@ import Browser
 import Html
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
 
 
@@ -12,11 +13,49 @@ type alias Flags =
 
 
 type Msg
-    = SearchResult (Result Http.Error Decode.Value)
+    = SearchResult (Result Http.Error (List Match))
 
 
 type alias Model =
-    ()
+    { input : String
+    , queryState : QueryState
+    }
+
+
+type QueryState
+    = NotAsked
+    | Asking String
+    | Failed Http.Error
+    | GotResults { query : String, matches : List Match }
+
+
+type alias Match =
+    { url : String
+    , highlights : List String
+    }
+
+
+responseDecoder : Decode.Decoder (List Match)
+responseDecoder =
+    Decode.at [ "hits", "hits" ] (Decode.list matchDecoder)
+
+
+matchDecoder : Decode.Decoder Match
+matchDecoder =
+    Decode.succeed Match
+        |> DecodePipeline.requiredAt [ "fields", "url" ]
+            (Decode.andThen
+                (\values ->
+                    case values of
+                        [ url ] ->
+                            Decode.succeed url
+
+                        _ ->
+                            Decode.fail "Expected to see a list with exactly one element"
+                )
+                (Decode.list Decode.string)
+            )
+        |> DecodePipeline.requiredAt [ "highlight", "contents" ] (Decode.list Decode.string)
 
 
 {-|
@@ -75,7 +114,9 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    ( ()
+    ( { input = ""
+      , queryState = NotAsked
+      }
     , let
         jsonQuery =
             exampleQuery "migration"
@@ -83,19 +124,22 @@ init =
       Http.post
         { url = "http://localhost:9200/doc-search/_search"
         , body = Http.jsonBody jsonQuery
-        , expect = Http.expectJson SearchResult Decode.value
+        , expect = Http.expectJson SearchResult responseDecoder
         }
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        _ =
+            Debug.log "msg" msg
+    in
     ( model, Cmd.none )
 
 
 view : Model -> Browser.Document Msg
 view model =
     { title = "Doc Search"
-    , body =
-        [ Html.text "Hello!" ]
+    , body = [ Html.text "Hello!" ]
     }
