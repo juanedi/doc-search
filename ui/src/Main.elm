@@ -1,11 +1,16 @@
 module Main exposing (main)
 
 import Browser
-import Html
+import Css
+import Html.Styled as Html
+import Html.Styled.Attributes exposing (css)
 import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
+import Nri.Ui.Logo.V1 as Logo
+import Nri.Ui.Svg.V1 as Svg
+import Nri.Ui.TextInput.V7 as TextInput
 
 
 type alias Flags =
@@ -13,7 +18,8 @@ type alias Flags =
 
 
 type Msg
-    = SearchResult (Result Http.Error (List Match))
+    = InputChanged String
+    | SearchResult (Result Http.Error (List Match))
 
 
 type alias Model =
@@ -24,9 +30,9 @@ type alias Model =
 
 type QueryState
     = NotAsked
-    | Asking String
+      -- | Asking String
     | Failed Http.Error
-    | GotResults { query : String, matches : List Match }
+    | GotMatches (List Match)
 
 
 type alias Match =
@@ -131,15 +137,62 @@ init =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        _ =
-            Debug.log "msg" msg
-    in
-    ( model, Cmd.none )
+    case msg of
+        InputChanged newInput ->
+            ( { model | input = newInput }, Cmd.none )
+
+        SearchResult result ->
+            ( { model
+                | queryState =
+                    case result of
+                        Err error ->
+                            Failed error
+
+                        Ok matches ->
+                            GotMatches matches
+              }
+            , Cmd.none
+            )
 
 
 view : Model -> Browser.Document Msg
 view model =
     { title = "Doc Search"
-    , body = [ Html.text "Hello!" ]
+    , body =
+        List.map Html.toUnstyled
+            [ Html.div
+                [ css
+                    [ Css.displayFlex
+                    , Css.flexDirection Css.column
+                    , Css.alignItems Css.center
+                    , Css.paddingTop (Css.pct 25)
+                    , Css.height (Css.vh 100)
+                    ]
+                ]
+                [ Html.div []
+                    [ Logo.noredink
+                        |> Svg.withWidth (Css.px 400)
+                        |> Svg.withCss [ Css.marginBottom (Css.px 40) ]
+                        |> Svg.toHtml
+                    ]
+                , Html.div
+                    [ css
+                        [ Css.displayFlex
+                        , Css.alignItems Css.center
+                        , Css.justifyContent Css.center
+                        ]
+                    ]
+                    [ TextInput.view ""
+                        [ TextInput.search InputChanged
+                        , TextInput.value model.input
+                        , TextInput.autofocus
+                        , TextInput.css
+                            [ Css.minWidth (Css.px 700)
+                            , Css.marginRight (Css.px 25)
+                            ]
+                        , TextInput.placeholder "Search anywhere"
+                        ]
+                    ]
+                ]
+            ]
     }
