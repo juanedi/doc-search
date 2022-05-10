@@ -337,7 +337,7 @@ viewHighlight highlight =
 
                 Html.Parser.Element tag _ children ->
                     if tag == "em" then
-                        Html.span
+                        Html.em
                             [ css
                                 [ Css.backgroundColor Colors.highlightYellow
                                 , Css.fontWeight Css.bold
