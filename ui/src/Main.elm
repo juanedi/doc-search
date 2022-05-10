@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Browser
 import Css
+import Html.Parser
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes exposing (css)
 import Html.Styled.Events as Events
@@ -9,6 +10,8 @@ import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
+import Nri.Ui.Colors.V1 as Colors
+import Nri.Ui.Fonts.V1 as Fonts
 import Nri.Ui.Heading.V2 as Heading
 import Nri.Ui.Logo.V1 as Logo
 import Nri.Ui.Message.V3 as Message
@@ -129,7 +132,8 @@ triggerSearch input =
                   )
                 , ( "highlight"
                   , Encode.object
-                        [ ( "fragment_size", Encode.int 50 )
+                        [ ( "fragment_size", Encode.int 100 )
+                        , ( "encoder", Encode.string "html" )
                         , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
                         ]
                   )
@@ -257,20 +261,14 @@ viewMatches model =
     let
         viewMatch match =
             Html.li [ css [ Css.marginBottom (Css.px 15) ] ]
-                [ Heading.h3 [] [ Html.text match.url ]
-                , case match.highlights of
-                    [] ->
-                        Html.text ""
-
-                    -- [ highlight ] ->
-                    --     viewHighlight highlight
-                    highlight :: _ ->
-                        viewHighlight highlight
-                ]
-
-        viewHighlight highlight =
-            -- TODO: render markdown?
-            Html.text highlight
+                (List.append
+                    [ Heading.h3 [] [ Html.text match.url ] ]
+                    (match.highlights
+                        |> List.head
+                        |> Maybe.map (\highlight -> [ viewHighlight highlight ])
+                        |> Maybe.withDefault []
+                    )
+                )
     in
     Html.div [ css [ Css.padding (Css.px 18) ] ]
         [ Message.view
@@ -287,3 +285,44 @@ viewMatches model =
             ]
             (List.map viewMatch model.matches)
         ]
+
+
+viewHighlight : String -> Html msg
+viewHighlight highlight =
+    let
+        viewNode node =
+            case node of
+                Html.Parser.Text text ->
+                    Html.text text
+
+                Html.Parser.Element tag _ children ->
+                    if tag == "em" then
+                        Html.span
+                            [ css
+                                [ Css.backgroundColor Colors.highlightYellow
+                                , Css.fontWeight Css.bold
+                                , Css.padding (Css.px 4)
+                                , Css.borderRadius (Css.px 6)
+                                ]
+                            ]
+                            (List.map viewNode children)
+
+                    else
+                        Html.text ""
+
+                Html.Parser.Comment _ ->
+                    Html.text ""
+    in
+    case Html.Parser.run highlight of
+        Err _ ->
+            Html.text ""
+
+        Ok nodes ->
+            Html.div
+                [ css
+                    [ Css.lineHeight (Css.px 24)
+                    , Fonts.baseFont
+                    , Css.color Colors.gray45
+                    ]
+                ]
+                (List.map viewNode nodes)
