@@ -9,11 +9,13 @@ import Http
 import Json.Decode as Decode
 import Json.Decode.Pipeline as DecodePipeline
 import Json.Encode as Encode
-import Nri.Ui.Colors.V1 as Colors
 import Nri.Ui.Heading.V2 as Heading
 import Nri.Ui.Logo.V1 as Logo
+import Nri.Ui.Message.V3 as Message
+import Nri.Ui.Shadows.V1 as Shadows
 import Nri.Ui.Svg.V1 as Svg
 import Nri.Ui.TextInput.V7 as TextInput
+import Nri.Ui.UiIcon.V1 as UiIcon
 
 
 type alias Flags =
@@ -220,7 +222,7 @@ viewMatchesPageHeader model =
             [ Css.displayFlex
             , Css.alignItems Css.center
             , Css.padding (Css.px 18)
-            , Css.borderBottom3 (Css.px 1) Css.solid Colors.gray85
+            , Shadows.low
             ]
         ]
         [ Logo.noredink
@@ -270,8 +272,13 @@ viewMatches model =
             -- TODO: render markdown?
             Html.text highlight
     in
-    Html.div [ css [ Css.padding2 Css.zero (Css.px 18) ] ]
-        [ Html.div [] [ Html.text (String.fromInt (List.length model.matches) ++ " matches found") ]
+    Html.div [ css [ Css.padding (Css.px 18) ] ]
+        [ Message.view
+            [ Message.plaintext (String.fromInt (List.length model.matches) ++ " results")
+            , Message.tiny
+            , Message.icon UiIcon.searchInCicle
+            , Message.success
+            ]
         , Html.ul
             [ css
                 [ Css.padding Css.zero
