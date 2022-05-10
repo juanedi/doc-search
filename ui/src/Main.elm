@@ -262,7 +262,17 @@ viewMatches model =
         viewMatch match =
             Html.li [ css [ Css.marginBottom (Css.px 15) ] ]
                 (List.append
-                    [ Heading.h3 [] [ Html.text match.url ] ]
+                    [ Html.a
+                        [ Html.Styled.Attributes.href match.url
+                        , Html.Styled.Attributes.target "_blank"
+                        , css
+                            [ Css.color Css.inherit
+                            , Css.textDecoration Css.inherit
+                            , Css.hover [ Css.textDecoration Css.underline ]
+                            ]
+                        ]
+                        [ Heading.h3 [] [ Html.text match.url ] ]
+                    ]
                     (match.highlights
                         |> List.head
                         |> Maybe.map (\highlight -> [ viewHighlight highlight ])
