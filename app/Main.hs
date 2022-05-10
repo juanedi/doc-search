@@ -38,9 +38,9 @@ newtype DocContent = DocContent Text deriving (Show)
 
 roots :: [Root]
 roots =
-  [ GithubRoot (GithubRepo "juanedi" "dotfiles" "master")
-  , GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
+  [ GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
   , GithubRoot (GithubRepo "NoRedInk" "NoRedInk" "master")
+  , GithubRoot (GithubRepo "NoRedInk" "ghost-migrations" "trunk")
   ]
 
 
