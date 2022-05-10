@@ -29,7 +29,9 @@ instance ToJSON Url where
 
 
 data Record = Record
-  { url :: Url
+  { name :: Text
+  , source :: Text
+  , url :: Url
   , contents :: Text
   }
   deriving (Generic)

@@ -1,7 +1,7 @@
 module Main where
 
 import qualified Data.ByteString.Char8 as BS
-import Data.List (intercalate)
+import Data.List (intercalate, last)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
@@ -41,6 +41,7 @@ roots =
   [ GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
   , GithubRoot (GithubRepo "NoRedInk" "NoRedInk" "master")
   , GithubRoot (GithubRepo "NoRedInk" "ghost-migrations" "trunk")
+  , GithubRoot (GithubRepo "NoRedInk" "wiki" "main")
   ]
 
 
@@ -63,10 +64,20 @@ processDoc ghAuth indexHandler doc@(GithubDoc (GithubRepo owner repo commit) pat
       Index.indexDoc
         indexHandler
         ( Index.Record
-            { Index.url = docToUrl doc
+            { Index.name = docName doc
+            , Index.source = Text.append "github:" (untagName repo)
+            , Index.url = docToUrl doc
             , Index.contents = content
             }
         )
+
+
+docName :: Doc -> Text
+docName (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) =
+  case Text.splitOn "/" path of
+    [] -> path
+    segments ->
+      last segments
 
 
 docToUrl :: Doc -> Index.Url

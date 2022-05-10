@@ -45,7 +45,9 @@ type QueryState
 
 
 type alias Match =
-    { url : String
+    { name : String
+    , source : String
+    , url : String
     , highlights : List String
     }
 
@@ -57,19 +59,23 @@ responseDecoder =
 
 matchDecoder : Decode.Decoder Match
 matchDecoder =
-    Decode.succeed Match
-        |> DecodePipeline.requiredAt [ "fields", "url" ]
-            (Decode.andThen
+    let
+        decodeSingletonList =
+            Decode.andThen
                 (\values ->
                     case values of
-                        [ url ] ->
-                            Decode.succeed url
+                        [ value ] ->
+                            Decode.succeed value
 
                         _ ->
                             Decode.fail "Expected to see a list with exactly one element"
                 )
                 (Decode.list Decode.string)
-            )
+    in
+    Decode.succeed Match
+        |> DecodePipeline.requiredAt [ "fields", "name" ] decodeSingletonList
+        |> DecodePipeline.requiredAt [ "fields", "source" ] decodeSingletonList
+        |> DecodePipeline.requiredAt [ "fields", "url" ] decodeSingletonList
         |> DecodePipeline.requiredAt [ "highlight", "contents" ] (Decode.list Decode.string)
 
 
@@ -137,7 +143,7 @@ triggerSearch input =
                         , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
                         ]
                   )
-                , ( "fields", Encode.list Encode.string [ "url" ] )
+                , ( "fields", Encode.list Encode.string [ "url", "source", "name" ] )
                 , ( "_source", Encode.bool False )
                 ]
     in
@@ -271,7 +277,15 @@ viewMatches model =
                             , Css.hover [ Css.textDecoration Css.underline ]
                             ]
                         ]
-                        [ Heading.h3 [] [ Html.text match.url ] ]
+                        [ Heading.h3 [] [ Html.text match.name ]
+                        ]
+                    , Html.div
+                        [ css
+                            [ Fonts.baseFont
+                            , Css.fontSize (Css.px 12)
+                            ]
+                        ]
+                        [ Html.text match.url ]
                     ]
                     (match.highlights
                         |> List.head
@@ -333,6 +347,8 @@ viewHighlight highlight =
                     [ Css.lineHeight (Css.px 24)
                     , Fonts.baseFont
                     , Css.color Colors.gray45
+                    , Css.fontSize (Css.px 10)
+                    , Css.marginTop (Css.px 2)
                     ]
                 ]
                 (List.map viewNode nodes)
