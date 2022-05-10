@@ -73,7 +73,7 @@ docToUrl :: Doc -> Index.Url
 docToUrl (GithubDoc (GithubRepo owner repo commit) (GithubPath path)) =
   Index.Url
     ( Text.concat
-        [ "http://github.com/"
+        [ "https://github.com/"
         , untagName owner
         , "/"
         , untagName repo
