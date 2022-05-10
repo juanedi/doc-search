@@ -65,7 +65,7 @@ processDoc ghAuth indexHandler doc@(GithubDoc (GithubRepo owner repo commit) pat
         indexHandler
         ( Index.Record
             { Index.name = docName doc
-            , Index.source = Text.append "github:" (untagName repo)
+            , Index.source = "github"
             , Index.url = docToUrl doc
             , Index.contents = content
             }

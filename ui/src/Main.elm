@@ -19,6 +19,7 @@ import Nri.Ui.Shadows.V1 as Shadows
 import Nri.Ui.Svg.V1 as Svg
 import Nri.Ui.TextInput.V7 as TextInput
 import Nri.Ui.UiIcon.V1 as UiIcon
+import Source exposing (Source)
 
 
 type alias Flags =
@@ -46,7 +47,7 @@ type QueryState
 
 type alias Match =
     { name : String
-    , source : String
+    , source : Source
     , url : String
     , highlights : List String
     }
@@ -60,7 +61,9 @@ responseDecoder =
 matchDecoder : Decode.Decoder Match
 matchDecoder =
     let
-        decodeSingletonList =
+        decodeSingletonList itemDecoder =
+            -- FIXME: i think we shouldn't need to handle these singleton lists
+            -- once we explicitly define the ES mapping.
             Decode.andThen
                 (\values ->
                     case values of
@@ -70,12 +73,12 @@ matchDecoder =
                         _ ->
                             Decode.fail "Expected to see a list with exactly one element"
                 )
-                (Decode.list Decode.string)
+                (Decode.list itemDecoder)
     in
     Decode.succeed Match
-        |> DecodePipeline.requiredAt [ "fields", "name" ] decodeSingletonList
-        |> DecodePipeline.requiredAt [ "fields", "source" ] decodeSingletonList
-        |> DecodePipeline.requiredAt [ "fields", "url" ] decodeSingletonList
+        |> DecodePipeline.requiredAt [ "fields", "name" ] (decodeSingletonList Decode.string)
+        |> DecodePipeline.requiredAt [ "fields", "source" ] (decodeSingletonList Source.decoder)
+        |> DecodePipeline.requiredAt [ "fields", "url" ] (decodeSingletonList Decode.string)
         |> DecodePipeline.requiredAt [ "highlight", "contents" ] (Decode.list Decode.string)
 
 
@@ -264,36 +267,6 @@ viewMatchesPageHeader model =
 
 viewMatches : Model -> Html Msg
 viewMatches model =
-    let
-        viewMatch match =
-            Html.li [ css [ Css.marginBottom (Css.px 15) ] ]
-                (List.append
-                    [ Html.a
-                        [ Html.Styled.Attributes.href match.url
-                        , Html.Styled.Attributes.target "_blank"
-                        , css
-                            [ Css.color Css.inherit
-                            , Css.textDecoration Css.inherit
-                            , Css.hover [ Css.textDecoration Css.underline ]
-                            ]
-                        ]
-                        [ Heading.h3 [] [ Html.text match.name ]
-                        ]
-                    , Html.div
-                        [ css
-                            [ Fonts.baseFont
-                            , Css.fontSize (Css.px 12)
-                            ]
-                        ]
-                        [ Html.text match.url ]
-                    ]
-                    (match.highlights
-                        |> List.head
-                        |> Maybe.map (\highlight -> [ viewHighlight highlight ])
-                        |> Maybe.withDefault []
-                    )
-                )
-    in
     Html.div [ css [ Css.padding (Css.px 18) ] ]
         [ Message.view
             [ Message.plaintext (String.fromInt (List.length model.matches) ++ " results")
@@ -308,6 +281,49 @@ viewMatches model =
                 ]
             ]
             (List.map viewMatch model.matches)
+        ]
+
+
+viewMatch : Match -> Html Msg
+viewMatch match =
+    Html.li
+        [ css
+            [ Css.marginBottom (Css.px 15)
+            , Css.displayFlex
+            ]
+        ]
+        [ match.source
+            |> Source.icon
+            |> Svg.withHeight (Css.px 30)
+            |> Svg.withCss [ Css.marginRight (Css.px 7) ]
+            |> Svg.toHtml
+        , Html.div []
+            (List.append
+                [ Html.a
+                    [ Html.Styled.Attributes.href match.url
+                    , Html.Styled.Attributes.target "_blank"
+                    , css
+                        [ Css.color Css.inherit
+                        , Css.textDecoration Css.inherit
+                        , Css.hover [ Css.textDecoration Css.underline ]
+                        ]
+                    ]
+                    [ Heading.h3 [] [ Html.text match.name ]
+                    ]
+                , Html.div
+                    [ css
+                        [ Fonts.baseFont
+                        , Css.fontSize (Css.px 12)
+                        ]
+                    ]
+                    [ Html.text match.url ]
+                ]
+                (match.highlights
+                    |> List.head
+                    |> Maybe.map (\highlight -> [ viewHighlight highlight ])
+                    |> Maybe.withDefault []
+                )
+            )
         ]
 
 
