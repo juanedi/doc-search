@@ -7,6 +7,7 @@ import qualified Data.Text as Text
 import Data.Text.Encoding.Base64 (decodeBase64, decodeBase64Lenient)
 import qualified Data.Vector
 import qualified Database.Bloodhound as Bloodhound
+import qualified Dropbox
 import GitHub (Name, Owner, Repo, Tree, executeRequest)
 import qualified GitHub.Auth as GHAuth
 import GitHub.Data.Name (untagName)
@@ -57,11 +58,11 @@ indexGithubRepos = do
   ghAuth <- GHAuth.OAuth . BS.pack <$> getEnv "GH_TOKEN"
   indexHandler <- Index.initialize
   docs <- concat <$> mapM (docsInGithubRoot ghAuth) repos
-  mapM_ (processDoc ghAuth indexHandler) docs
+  mapM_ (indexGithubDoc ghAuth indexHandler) docs
 
 
-processDoc :: GHAuth.Auth -> Index.Handler -> Doc -> IO ()
-processDoc ghAuth indexHandler doc@(GithubDoc (GithubRepo owner repo commit) path) = do
+indexGithubDoc :: GHAuth.Auth -> Index.Handler -> Doc -> IO ()
+indexGithubDoc ghAuth indexHandler doc@(GithubDoc (GithubRepo owner repo commit) path) = do
   maybeContent <- fetchDocContents ghAuth doc
   case maybeContent of
     Nothing ->
@@ -152,4 +153,35 @@ listFiles ghAuth (GithubRepo owner repo commit) = do
 
 
 indexPaperDocs :: IO ()
-indexPaperDocs = return ()
+indexPaperDocs = do
+  let docsToFetch = 100
+  indexHandler <- Index.initialize
+  dropboxHandler <- Dropbox.initialize
+  maybeDocIds <- Dropbox.listDocs dropboxHandler docsToFetch
+  case maybeDocIds of
+    Nothing ->
+      -- TODO: handle error
+      do
+        putStrLn "failed to list docs"
+        return ()
+    Just docIds ->
+      mapM_ (indexPaperDoc indexHandler dropboxHandler) docIds
+
+
+indexPaperDoc :: Index.Handler -> Dropbox.Handler -> Dropbox.DocId -> IO ()
+indexPaperDoc indexHandler dropboxHandler docId = do
+  maybeMetadata <- Dropbox.fetchDocMetadata dropboxHandler docId
+  maybeContent <- Dropbox.fetchDocContent dropboxHandler docId
+  case (maybeMetadata, maybeContent) of
+    (Just metadata, Just content) ->
+      Index.indexDoc
+        indexHandler
+        ( Index.Record
+            { Index.name = Dropbox.title metadata
+            , Index.source = "dropbox-paper"
+            , Index.url = Index.Url (Dropbox.docUrl docId)
+            , Index.contents = content
+            }
+        )
+    _ ->
+      return ()

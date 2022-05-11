@@ -9,6 +9,7 @@ import Svg.Attributes exposing (..)
 
 type Source
     = Github
+    | DropboxPaper
 
 
 decoder : Json.Decode.Decoder Source
@@ -20,6 +21,9 @@ decoder =
                     "github" ->
                         Json.Decode.succeed Github
 
+                    "dropbox-paper" ->
+                        Json.Decode.succeed DropboxPaper
+
                     _ ->
                         Json.Decode.fail ("Unrecognized source: " ++ string)
             )
@@ -27,7 +31,7 @@ decoder =
 
 icon : Source -> NriSVG.Svg
 icon source =
-    case source of
+    (case source of
         Github ->
             svg
                 [ width "100%"
@@ -44,5 +48,23 @@ icon source =
                     ]
                     []
                 ]
-                |> Html.Styled.fromUnstyled
-                |> NriSVG.fromHtml
+
+        DropboxPaper ->
+            svg
+                [ width "100%"
+                , height "100%"
+                , viewBox "0 0 178.81 187.43"
+                , version "1.1"
+                ]
+                [ defs []
+                    [ Svg.clipPath [ Svg.Attributes.id "clip1" ] [ Svg.path [ d "M 0 73 L 178.808594 73 L 178.808594 187.429688 L 0 187.429688 Z M 0 73 " ] [] ]
+                    , Svg.clipPath [ Svg.Attributes.id "clip2" ] [ Svg.path [ d "M 0 0 L 178.808594 0 L 178.808594 114 L 0 114 Z M 0 0 " ] [] ]
+                    ]
+                , g [ id "surface1" ]
+                    [ g [ Svg.Attributes.clipPath "url(#clip1)", clipRule "nonzero" ] [ Svg.path [ Svg.Attributes.style " stroke:none;fill-rule:nonzero;fill:rgb(70.599365%,81.599426%,90.19928%);fill-opacity:1;", d "M 0 130.472656 L 89.40625 187.429688 L 178.8125 130.472656 L 89.40625 73.519531 L 0 130.472656 " ] [] ]
+                    , g [ Svg.Attributes.clipPath "url(#clip2)", clipRule "nonzero" ] [ Svg.path [ Svg.Attributes.style " stroke:none;fill-rule:nonzero;fill:rgb(25.099182%,39.99939%,68.998718%);fill-opacity:1;", d "M 0 56.949219 L 89.40625 113.90625 L 178.8125 56.949219 L 89.40625 -0.00390625 L 0 56.949219 " ] [] ]
+                    ]
+                ]
+    )
+        |> Html.Styled.fromUnstyled
+        |> NriSVG.fromHtml

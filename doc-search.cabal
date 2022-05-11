@@ -29,8 +29,8 @@ executable doc-search
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:
-        Index
+    other-modules: Dropbox
+                 , Index
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -42,6 +42,8 @@ executable doc-search
                     , bytestring
                     , pureMD5
                     , http-client ^>=0.7.11
+                    , http-client-tls
+                    , http-types
                     , github ^>=0.28
                     , text
                     , vector

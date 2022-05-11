@@ -146,6 +146,7 @@ triggerSearch input =
                         , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
                         ]
                   )
+                , ( "size", Encode.int 100 )
                 , ( "fields", Encode.list Encode.string [ "url", "source", "name" ] )
                 , ( "_source", Encode.bool False )
                 ]
