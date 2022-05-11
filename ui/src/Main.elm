@@ -141,7 +141,7 @@ triggerSearch input =
                   )
                 , ( "highlight"
                   , Encode.object
-                        [ ( "fragment_size", Encode.int 100 )
+                        [ ( "fragment_size", Encode.int 300 )
                         , ( "encoder", Encode.string "html" )
                         , ( "fields", Encode.object [ ( "contents", Encode.object [] ) ] )
                         ]
@@ -289,7 +289,7 @@ viewMatch : Match -> Html Msg
 viewMatch match =
     Html.li
         [ css
-            [ Css.marginBottom (Css.px 15)
+            [ Css.marginBottom (Css.px 20)
             , Css.displayFlex
             ]
         ]
@@ -361,11 +361,12 @@ viewHighlight highlight =
         Ok nodes ->
             Html.div
                 [ css
-                    [ Css.lineHeight (Css.px 24)
+                    [ Css.lineHeight (Css.px 18)
                     , Fonts.baseFont
                     , Css.color Colors.gray45
                     , Css.fontSize (Css.px 10)
-                    , Css.marginTop (Css.px 2)
+                    , Css.marginTop (Css.px 10)
+                    , Css.maxWidth (Css.px 500)
                     ]
                 ]
                 (List.map viewNode nodes)
