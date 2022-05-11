@@ -13,10 +13,7 @@ import GitHub.Data.Name (untagName)
 import qualified GitHub.Endpoints.GitData.Trees as GHTrees
 import qualified GitHub.Endpoints.Repos.Contents as GHContents
 import qualified Index
-import System.Environment (getEnv)
-
-
-newtype Root = GithubRoot GithubRepo
+import System.Environment (getArgs, getEnv)
 
 
 data GithubRepo = GithubRepo (Name Owner) (Name Repo) (Name Tree)
@@ -36,20 +33,30 @@ newtype GithubPath = GithubPath Text deriving (Show)
 newtype DocContent = DocContent Text deriving (Show)
 
 
-roots :: [Root]
-roots =
-  [ GithubRoot (GithubRepo "NoRedInk" "noredink-ui" "master")
-  , GithubRoot (GithubRepo "NoRedInk" "NoRedInk" "master")
-  , GithubRoot (GithubRepo "NoRedInk" "ghost-migrations" "trunk")
-  , GithubRoot (GithubRepo "NoRedInk" "wiki" "main")
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    ["--index-github"] -> indexGithubRepos
+    ["--index-paper"] -> indexPaperDocs
+    _ ->
+      putStrLn "Please specify a source to index"
+
+
+repos :: [GithubRepo]
+repos =
+  [ GithubRepo "NoRedInk" "noredink-ui" "master"
+  , GithubRepo "NoRedInk" "NoRedInk" "master"
+  , GithubRepo "NoRedInk" "ghost-migrations" "trunk"
+  , GithubRepo "NoRedInk" "wiki" "main"
   ]
 
 
-main :: IO ()
-main = do
+indexGithubRepos :: IO ()
+indexGithubRepos = do
   ghAuth <- GHAuth.OAuth . BS.pack <$> getEnv "GH_TOKEN"
   indexHandler <- Index.initialize
-  docs <- concat <$> mapM (\(GithubRoot repo) -> docsInGithubRoot ghAuth repo) roots
+  docs <- concat <$> mapM (docsInGithubRoot ghAuth) repos
   mapM_ (processDoc ghAuth indexHandler) docs
 
 
@@ -142,3 +149,7 @@ listFiles ghAuth (GithubRepo owner repo commit) = do
       return []
     Right tree ->
       return (Data.Vector.toList (GHTrees.treeGitTrees tree))
+
+
+indexPaperDocs :: IO ()
+indexPaperDocs = return ()
