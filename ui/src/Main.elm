@@ -134,7 +134,7 @@ triggerSearch input =
                         [ ( "simple_query_string"
                           , Encode.object
                                 [ ( "query", Encode.string input )
-                                , ( "fields", Encode.list Encode.string [ "contents" ] )
+                                , ( "fields", Encode.list Encode.string [ "name", "contents" ] )
                                 ]
                           )
                         ]
