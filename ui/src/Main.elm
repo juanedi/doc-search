@@ -295,8 +295,11 @@ viewMatch match =
         ]
         [ match.source
             |> Source.icon
-            |> Svg.withHeight (Css.px 30)
-            |> Svg.withCss [ Css.marginRight (Css.px 7) ]
+            |> Svg.withHeight (Css.px 20)
+            |> Svg.withCss
+                [ Css.marginRight (Css.px 7)
+                , Css.paddingTop (Css.px 6)
+                ]
             |> Svg.toHtml
         , Html.div []
             (List.append
