@@ -50,6 +50,7 @@ repos =
   , GithubRepo "NoRedInk" "NoRedInk" "master"
   , GithubRepo "NoRedInk" "ghost-migrations" "trunk"
   , GithubRepo "NoRedInk" "wiki" "main"
+  , GithubRepo "NoRedInk" "discourse-export" "main"
   ]
 
 
